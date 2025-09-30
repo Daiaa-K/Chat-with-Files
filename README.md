@@ -63,7 +63,7 @@ python main.py
 The server will start on `http://0.0.0.0:8765`
 
 ### 2. Access the API documentation
-Visit `http://0.0.0.0:8765` for interactive API documentation
+Visit `http://0.0.0.0:8765/docs` for interactive API documentation
 
 ### 3. Process a file
 First, preprocess your document to create embeddings:
