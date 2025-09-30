@@ -1,0 +1,26 @@
+[
+  {
+    "role": "human",
+    "content": "what is the number of layers in the encoder stack?"
+  },
+  {
+    "role": "ai",
+    "content": "The encoder is composed of a stack of N = 6 identical layers."
+  },
+  {
+    "role": "human",
+    "content": "Multiply that number by 2"
+  },
+  {
+    "role": "ai",
+    "content": "12"
+  },
+  {
+    "role": "human",
+    "content": "what was my last question?"
+  },
+  {
+    "role": "ai",
+    "content": "Your last question was: what is the number of layers in the encoder stack?"
+  }
+]

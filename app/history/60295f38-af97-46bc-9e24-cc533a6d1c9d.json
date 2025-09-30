@@ -1,0 +1,18 @@
+[
+  {
+    "role": "human",
+    "content": "What is this document about?"
+  },
+  {
+    "role": "ai",
+    "content": "The document is about the Transformer architecture, specifically focusing on attention heads and their role in tasks like anaphora resolution and sentence structure analysis. It also discusses variations of the Transformer architecture and their performance on English-to-German translation."
+  },
+  {
+    "role": "human",
+    "content": "Who is albert einstein"
+  },
+  {
+    "role": "ai",
+    "content": "I'm sorry, but the provided documents do not contain information about Albert Einstein. Therefore, I cannot answer your question."
+  }
+]

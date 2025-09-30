@@ -1,0 +1,26 @@
+[
+  {
+    "role": "human",
+    "content": "how many layers in encoder stack?"
+  },
+  {
+    "role": "ai",
+    "content": "N = 6"
+  },
+  {
+    "role": "human",
+    "content": "multiply that number by 2"
+  },
+  {
+    "role": "ai",
+    "content": "I don't know."
+  },
+  {
+    "role": "human",
+    "content": "what was my last question?"
+  },
+  {
+    "role": "ai",
+    "content": "I don't know."
+  }
+]

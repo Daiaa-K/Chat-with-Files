@@ -1,0 +1,26 @@
+[
+  {
+    "role": "human",
+    "content": "How long is this document?"
+  },
+  {
+    "role": "ai",
+    "content": "I don't know."
+  },
+  {
+    "role": "human",
+    "content": "What is the decoder?"
+  },
+  {
+    "role": "ai",
+    "content": "The decoder maps a sequence of continuous representations z = (z1,...,z n) and generates an output sequence of symbols. It contains self-attention layers that allow each position in the decoder to attend over all positions in the input sequence, similar to encoder-decoder attention mechanisms in sequence-to-sequence models. The decoder is composed of a stack of N = 6 identical layers."
+  },
+  {
+    "role": "human",
+    "content": "Who are you?"
+  },
+  {
+    "role": "ai",
+    "content": "I am an intelligent AI assistant."
+  }
+]

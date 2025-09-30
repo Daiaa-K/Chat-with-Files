@@ -1,10 +1,13 @@
-import os
-from langchain.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader, WikipediaLoader
+import time
+from langchain_community.document_loaders import PyPDFLoader, TextLoader, Docx2txtLoader, WikipediaLoader
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain.vectorstores import Chroma
+from langchain_pinecone.vectorstores import Pinecone
+import pinecone
 from utils.logger import logger
 from config.settings import settings
-from langchain_google_genai import GoogleGenerativeAIEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings
+from huggingface_hub import login
+
 
 class Preprocessing:
     """
@@ -12,8 +15,14 @@ class Preprocessing:
     """
     def __init__(self, file_path: str):
         self.embedding_model_name = settings.EMBEDDING_MODEL_NAME
-        self.db_dir = os.path.join(settings.DATABASE_DIR, "chroma_db")
+        self.index_name = settings.INDEX_NAME
         self.file_path = file_path
+        self.pc = pinecone.Pinecone(api_key=settings.PINECONE_KEY)
+        login(token=settings.HF_TOKEN)
+        self.embeddings = HuggingFaceEmbeddings(
+            model_name=self.embedding_model_name,
+            model_kwargs={"device": "cpu"}
+        )
 
     def load_doc(self):
         """Load a document from the specified file path.
@@ -43,22 +52,6 @@ class Preprocessing:
             logger.error(f"Error loading document: {e}")
             raise e
         
-    def load_from_wiki(self, query, lang="en", load_max_docs=2):
-        """Load content from Wikipedia based on a query.
-        
-        Args:
-            query (str): The search term to look up on Wikipedia.
-            lang (str, optional): Language code for Wikipedia. Defaults to "en".
-            load_max_docs (int, optional): Maximum number of documents to load. Defaults to 2.
-        """
-        try:
-            loader = WikipediaLoader(query=query, lang=lang, load_max_docs=load_max_docs)
-            docs = loader.load()
-            logger.info(f"Loaded {len(docs)} documents from Wikipedia for query: {query}")
-            return docs
-        except Exception as e:
-            logger.error(f"Error loading from Wikipedia: {e}")
-            raise e
         
     def chunk_docs(self, docs, chunk_size=512,chunk_overlap = 50):
         """
@@ -72,7 +65,6 @@ class Preprocessing:
             text_splitter = RecursiveCharacterTextSplitter(
                 chunk_size=chunk_size,
                 chunk_overlap=chunk_overlap,
-                length_function=len
             )
             
             chunks = text_splitter.split_documents(docs)
@@ -82,45 +74,68 @@ class Preprocessing:
             logger.error(f"Error chunking documents: {e}")
             raise e    
         
-    def create_embeddings_chroma(self,docs):
-        """_summary_
-
+    def create_embeddings_pinecone(self,chunks):
+        """
+        Create embeddings for the document chunks and store them in Pinecone.
         Args:
-            docs (_type_): _description_
-            persist_directory (str, optional): _description_. Defaults to "database/chroma_db".
+            chunks (List[Document]): List of document chunks to create embeddings for.
         """
         try:
-            embeddings = GoogleGenerativeAIEmbeddings(
-                model = self.embedding_model_name
-            )
+
             
-            vector_store = Chroma.from_documents(
-                docs,
-                embeddings,
-                persist_directory=self.db_dir,
+            logger.info("Testing embeddings...")
+            emb = self.embeddings.embed_query("hello world")
+            logger.info(f"Sample embedding vector (first 5 values): {emb[:5]}")
+            
+            if self.index_name in self.pc.list_indexes().names():
+                self.pc.delete_index(self.index_name)
+                logger.info(f"Deleted existing Pinecone index: {self.index_name}")
+
+            self.pc.create_index(
+                name=self.index_name,
+                dimension=len(emb),
+                metric="cosine",
+                spec=pinecone.ServerlessSpec(
+                    cloud="aws",
+                    region="us-east-1"
+        ) 
             )
-            logger.info(f"Created embeddings and stored in ChromaDB at {self.db_dir}")
-            vector_store.persist()
+            logger.info(f"Created Pinecone index: {self.index_name}")
+            
+            logger.info("Creating embeddings using HuggingFaceEmbeddings.")
+            vector_store = Pinecone.from_documents(
+                documents=chunks,
+                embedding=self.embeddings,
+                index_name=self.index_name
+            )
+            logger.info(f"Created embeddings and stored in Pinecone index: {self.index_name}")
+            #  Get vector count from Pinecone stats
+            index = self.pc.Index(self.index_name)
+            stats = index.describe_index_stats()
+
+            time.sleep(5)  # Wait for a few seconds to ensure stats are updated
+            logger.info(f"Index stats: {stats}")
             return vector_store
         except Exception as e:
             logger.error(f"Error creating embeddings: {e}")
             raise e
         
-    def load_embeddings_chroma(self):
-        """Load existing ChromaDB embeddings from the specified directory.
+    def load_embeddings_pinecone(self):
+        """Load existing Pinecone embeddings from the specified directory.
         
         Returns:
-            Chroma: The loaded Chroma vector store.
+            VectorStore: The vector store containing the embeddings.
         """
         try:
-            embeddings = GoogleGenerativeAIEmbeddings(
-                model = self.embedding_model_name
+            # Check if the directory exists
+            if not self.index_name in self.pc.list_indexes().names():
+                print(f"index {self.index_name} does not exist.")
+                return None
+            vector_store = Pinecone.from_existing_index(
+                embedding=self.embeddings,
+                index_name=self.index_name
             )
-            vector_store = Chroma(
-                persist_directory=self.db_dir,
-                embedding_function=embeddings
-            )
-            logger.info(f"Loaded embeddings from ChromaDB at {self.db_dir}")
+            logger.info(f"loaded embeddings from Pinecone index: {self.index_name}")
             return vector_store
         except Exception as e:
             logger.error(f"Error loading embeddings: {e}")
@@ -130,16 +145,13 @@ class Preprocessing:
         """Complete preprocessing pipeline: load document, chunk it, and create/load embeddings.
         
         Returns:
-            Chroma: The Chroma vector store with embeddings.
+            VectorStore: The vector store containing the embeddings.
         """
         try:
-            if not os.path.exists(self.db_dir) or not os.listdir(self.db_dir):
                 docs = self.load_doc()
                 chunks = self.chunk_docs(docs)
-                vector_store = self.create_embeddings_chroma(chunks)
-            else:
-                vector_store = self.load_embeddings_chroma()
-            return vector_store
+                vector_store = self.create_embeddings_pinecone(chunks)
+                return vector_store
         except Exception as e:
             logger.error(f"Error in preprocessing pipeline: {e}")
             raise e

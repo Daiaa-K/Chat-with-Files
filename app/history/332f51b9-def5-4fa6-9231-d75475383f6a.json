@@ -1,0 +1,10 @@
+[
+  {
+    "role": "human",
+    "content": "what is positional encoding?"
+  },
+  {
+    "role": "ai",
+    "content": "Positional encoding is a technique used to provide information about the position of tokens in a sequence, which is especially important when the model contains no recurrence and no convolution. It is added to the input embeddings at the bottoms of the encoder and decoder stacks. The positional encodings have the same dimension as the embeddings so that the two can be summed. In theTransformer model, sine and cosine functions of different frequencies are used for positional encoding:\n\nPE(pos,2i) = sin(pos/100002i/dmodel )\nPE(pos,2i+1) = cos(pos/100002i/dmodel )"
+  }
+]
